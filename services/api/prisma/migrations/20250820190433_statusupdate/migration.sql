@@ -1,0 +1,12 @@
+-- CreateEnum
+CREATE TYPE "ProposalStatus" AS ENUM ('APPROVED', 'REJECTED', 'UNDER_REVIEW');
+
+-- CreateEnum
+CREATE TYPE "RFPStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'RESPONSE_SUBMITED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'ARCHIEVED');
+
+-- AlterTable
+ALTER TABLE "Proposal" ADD COLUMN     "status" "ProposalStatus" NOT NULL DEFAULT 'UNDER_REVIEW';
+
+-- AlterTable
+ALTER TABLE "Rfp" ADD COLUMN     "proposalLimit" INTEGER,
+ADD COLUMN     "status" "RFPStatus" NOT NULL DEFAULT 'DRAFT';

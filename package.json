@@ -1,0 +1,18 @@
+{
+  "name": "rfp-cms",
+  "private": true,
+  "version": "0.2.0",
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "build": "npm run -ws build",
+    "dev": "npm run -ws --if-present dev",
+    "start": "npm run -ws --if-present start",
+    "seed": "npm run -w @rfp/api seed"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

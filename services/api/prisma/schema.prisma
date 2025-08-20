@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Org {
+  id        String   @id @default(uuid())
+  name      String
+  logo      String?
+  bio       String
+  website   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+  rfps      Rfp[]
+}
+
+model User {
+  id                    String   @id @default(uuid())
+  email                 String   @unique
+  password              String
+  role                  Role
+  orgId                 String?
+  org                   Org?     @relation(fields: [orgId], references: [id])
+  department            String?
+  vendor                Vendor?
+  isActivated           Boolean  @default(false)
+  emailVerificationCode String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Vendor {
+  id               String     @id @default(uuid())
+  name             String
+  bio              String
+  website          String?
+  logo             String?
+  contactPerson    String
+  contactNumber    String
+  gstin            String
+  businessCategory String
+  userId           String     @unique
+  user             User       @relation(fields: [userId], references: [id])
+  proposals        Proposal[]
+  contracts        Contract[]
+}
+
+model Rfp {
+  id            String     @id @default(uuid())
+  orgId         String
+  org           Org        @relation(fields: [orgId], references: [id])
+  title         String
+  description   String
+  deadline      DateTime
+  attachments   String[]
+  status        RFPStatus  @default(DRAFT)
+  proposalLimit Int?
+  proposals     Proposal[]
+  contracts     Contract[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model Proposal {
+  id          String         @id @default(uuid())
+  rfpId       String
+  rfp         Rfp            @relation(fields: [rfpId], references: [id])
+  vendorId    String
+  vendor      Vendor         @relation(fields: [vendorId], references: [id])
+  price       Decimal        @db.Decimal(12, 2)
+  summary     String
+  attachments String[]
+  score       Float?
+  status      ProposalStatus @default(UNDER_REVIEW)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Contract {
+  id        String         @id @default(uuid())
+  rfpId     String
+  rfp       Rfp            @relation(fields: [rfpId], references: [id])
+  vendorId  String
+  vendor    Vendor         @relation(fields: [vendorId], references: [id])
+  status    ContractStatus @default(DRAFT)
+  body      String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+enum Role {
+  ADMIN
+  PROCUREMENT
+  LEGAL
+  VENDOR
+}
+
+enum ContractStatus {
+  DRAFT
+  NEGOTIATION
+  SIGNED
+}
+
+enum ProposalStatus {
+  APPROVED
+  REJECTED
+  UNDER_REVIEW
+}
+
+enum RFPStatus {
+  DRAFT
+  PUBLISHED
+  RESPONSE_SUBMITED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  ARCHIEVED
+}

@@ -1,0 +1,81 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rfp_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rfp
+      POSTGRES_USER: rfp_user
+      POSTGRES_PASSWORD: rfp_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: rfp_redis
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: quay.io/minio/minio
+    container_name: rfp_minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    container_name: rfp_api
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://rfp_user:rfp_pass@postgres:5432/rfp?schema=public
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      S3_BUCKET: rfp-bucket
+      JWT_SECRET: dev_secret_change_me
+      OPENAI_API_KEY: ""
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app
+    working_dir: /app/services/api
+    command: sh -c "cd /app && npm install && cd services/api && npx prisma migrate deploy || npx prisma migrate dev --name init && npm run dev"
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/worker/Dockerfile
+    container_name: rfp_worker
+    depends_on:
+      - redis
+      - api
+    environment:
+      NODE_ENV: development
+      REDIS_URL: redis://redis:6379
+      OPENAI_API_KEY: ""
+    volumes:
+      - ./:/app
+    working_dir: /app/services/worker
+    command: sh -c "cd /app && npm install && cd services/worker && npm run dev"
+
+volumes:
+  pgdata:
+  minio_data:
