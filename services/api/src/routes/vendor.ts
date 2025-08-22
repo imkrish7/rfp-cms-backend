@@ -3,21 +3,25 @@ import { requireAuth } from "../core/auth";
 import { StatusCodes } from "http-status-codes";
 import { VendorSchema } from "@rfp/shared";
 import { prisma } from "../core/db";
+import { logger } from "../core/logger";
 
-export const organisationRouter = Router()
+export const vendorRouter = Router()
 
-organisationRouter.post("/vendor/create", requireAuth(["VENDOR"]), async (req: Request, res: Response) => {
+vendorRouter.post("/create", requireAuth(["VENDOR"]), async (req: Request, res: Response) => {
     
     try {
         const validatedData = VendorSchema.safeParse(req.body)
 
         if (validatedData.error) {
+            logger.error(validatedData.error)
             return res.status(StatusCodes.BAD_REQUEST).json({error: "Data Validation failed!"})
         }
 
-        const { name, logo, description, website, userId, contactNumber, contactPerson, gstin, businessCategory } = validatedData.data;
+        const { name, logo, description, website, contactNumber, contactPerson, gstin, businessCategory } = validatedData.data;
 
-        const newVendor = await prisma.$transaction(async (tx) => {
+        const userId = req.user?.sub!
+
+        const _newVendor = await prisma.$transaction(async (tx) => {
             const newOrganisation = await tx.vendor.create({
                 data: {
                     name,
@@ -25,10 +29,16 @@ organisationRouter.post("/vendor/create", requireAuth(["VENDOR"]), async (req: R
                     website,
                     contactNumber,
                     contactPerson,
-                    userId,
                     gstin,
                     businessCategory,
                     bio: description
+                }
+            })
+
+            await tx.user.update({
+                where: { id: userId },
+                data: {
+                    vendorId: newOrganisation.id
                 }
             })
             return newOrganisation
@@ -38,6 +48,7 @@ organisationRouter.post("/vendor/create", requireAuth(["VENDOR"]), async (req: R
 
         
     } catch (error) {
+        logger.error(error)
         return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: "Internal server error!"})
     }
     

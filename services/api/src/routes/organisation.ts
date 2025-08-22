@@ -6,7 +6,7 @@ import { prisma } from "../core/db";
 
 export const organisationRouter = Router()
 
-organisationRouter.post("/organisation/create", requireAuth(["PROCUREMENT"]), async (req: Request, res: Response) => {
+organisationRouter.post("/create", requireAuth(["PROCUREMENT"]), async (req: Request, res: Response) => {
     
     try {
 
@@ -16,7 +16,8 @@ organisationRouter.post("/organisation/create", requireAuth(["PROCUREMENT"]), as
             return res.status(StatusCodes.BAD_REQUEST).json({error: "Data Validation failed!"})
         }
 
-        const { name, logo, description, website, userId } = validatedData.data;
+        const { name, logo, description, website } = validatedData.data;
+        const userId = req.user?.sub;
 
         const newOrganisation = await prisma.$transaction(async (tx) => {
             const newOrganisation = await tx.org.create({

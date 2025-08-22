@@ -17,6 +17,7 @@ model Org {
   updatedAt DateTime @updatedAt
   users     User[]
   rfps      Rfp[]
+  @@map("organisations")
 }
 
 model User {
@@ -27,11 +28,13 @@ model User {
   orgId                 String?
   org                   Org?     @relation(fields: [orgId], references: [id])
   department            String?
-  vendor                Vendor?
+  vendorId              String? 
+  vendor                Vendor? @relation(fields: [vendorId], references: [id])
   isActivated           Boolean  @default(false)
   emailVerificationCode String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+  @@map("users")
 }
 
 model Vendor {
@@ -44,26 +47,33 @@ model Vendor {
   contactNumber    String
   gstin            String
   businessCategory String
-  userId           String     @unique
-  user             User       @relation(fields: [userId], references: [id])
+  users             User[]
   proposals        Proposal[]
   contracts        Contract[]
+  @@map("vendors")
 }
 
 model Rfp {
-  id            String     @id @default(uuid())
-  orgId         String
-  org           Org        @relation(fields: [orgId], references: [id])
-  title         String
-  description   String
-  deadline      DateTime
-  attachments   String[]
-  status        RFPStatus  @default(DRAFT)
-  proposalLimit Int?
-  proposals     Proposal[]
-  contracts     Contract[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id                 String     @id @default(uuid())
+  orgId              String
+  org                Org        @relation(fields: [orgId], references: [id])
+  title              String
+  issuedBy           String
+  issuedDate         DateTime
+  scopeOfWork        String[]
+  timeline           Json
+  evaluationCriteria String[]
+  deliverables       String[]
+  description        String
+  deadline           DateTime
+  attachments        String[]
+  status             RFPStatus  @default(DRAFT)
+  proposalLimit      Int?
+  proposals          Proposal[]
+  contracts          Contract[]
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  @@map("rfps")
 }
 
 model Proposal {
@@ -79,6 +89,7 @@ model Proposal {
   status      ProposalStatus @default(UNDER_REVIEW)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+  @@map("proposals")
 }
 
 model Contract {
@@ -91,6 +102,7 @@ model Contract {
   body      String
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
+  @@map("contracts")
 }
 
 enum Role {

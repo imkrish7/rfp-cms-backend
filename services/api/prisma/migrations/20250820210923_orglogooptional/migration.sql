@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE "Org" ALTER COLUMN "logo" DROP NOT NULL;
