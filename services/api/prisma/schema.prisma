@@ -60,10 +60,10 @@ model Rfp {
   title              String
   issuedBy           String
   issuedDate         DateTime
-  scopeOfWork        String[]
+  scopeOfWork        String
   timeline           Json
-  evaluationCriteria String[]
-  deliverables       String[]
+  evaluationCriteria String
+  deliverables       String
   description        String
   deadline           DateTime
   attachments        String[]

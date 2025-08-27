@@ -22,7 +22,7 @@ export function requireAuth(roles?: string[]) {
       };
       if (decoded.role === "VENDOR") {
         user["vendorId"] = decoded.vendorId;
-      } else if (decoded.role === "ADMIN") {
+      } else if (decoded.role === "PROCUREMENT") {
         user["orgId"] = decoded.orgId
       }
       req.user = user;

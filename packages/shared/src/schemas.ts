@@ -40,23 +40,27 @@ export const VendorSchema = z.object({
 });
 
 const timelineSchema = z.object({
-  proposalSubmission: z.string().date(), // see note below
-  vendorSelection: z.string().date(),
-  projectStart: z.string().date(),
-  completion: z.string().date(),
+  proposalSubmission: z.string(), // see note below
+  vendorSelection: z.string(),
+  projectStart: z.string(),
+  completion: z.string(),
 });
 
 export const RfpSchema = z.object({
-  id: z.string().uuid().optional(),
-  orgId: z.string().uuid(),
   title: z.string().min(3),
   description: z.string().min(10),
   deadline: z.string(),
   issuedBy: z.string(),
-  issueDate: z.string(),
-  scopeOfWork: z.array(z.string()),
-  evaluationCriteria: z.array(z.string()),
-  deliverables: z.array(z.string()),
+  status: z.enum(["DRAFT",
+  "PUBLISHED",
+  "RESPONSE_SUBMITED",
+  "UNDER_REVIEW",
+  "APPROVED",
+  "REJECTED",
+  "ARCHIEVED"]).optional(),
+  scopeOfWork: z.string(),
+  evaluationCriteria:z.string(),
+  deliverables: z.string(),
   timeline: timelineSchema
 });
 
