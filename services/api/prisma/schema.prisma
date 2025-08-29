@@ -17,6 +17,7 @@ model Org {
   updatedAt DateTime @updatedAt
   users     User[]
   rfps      Rfp[]
+
   @@map("organisations")
 }
 
@@ -28,12 +29,13 @@ model User {
   orgId                 String?
   org                   Org?     @relation(fields: [orgId], references: [id])
   department            String?
-  vendorId              String? 
-  vendor                Vendor? @relation(fields: [vendorId], references: [id])
+  vendorId              String?
+  vendor                Vendor?  @relation(fields: [vendorId], references: [id])
   isActivated           Boolean  @default(false)
   emailVerificationCode String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+
   @@map("users")
 }
 
@@ -47,16 +49,17 @@ model Vendor {
   contactNumber    String
   gstin            String
   businessCategory String
-  users             User[]
+  users            User[]
   proposals        Proposal[]
   contracts        Contract[]
+
   @@map("vendors")
 }
 
 model Rfp {
-  id                 String     @id @default(uuid())
+  id                 String       @id @default(uuid())
   orgId              String
-  org                Org        @relation(fields: [orgId], references: [id])
+  org                Org          @relation(fields: [orgId], references: [id])
   title              String
   issuedBy           String
   issuedDate         DateTime
@@ -66,13 +69,14 @@ model Rfp {
   deliverables       String
   description        String
   deadline           DateTime
-  attachments        String[]
-  status             RFPStatus  @default(DRAFT)
+  attachments        Attachment[]
+  status             RFPStatus    @default(DRAFT)
   proposalLimit      Int?
   proposals          Proposal[]
   contracts          Contract[]
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
   @@map("rfps")
 }
 
@@ -83,26 +87,61 @@ model Proposal {
   vendorId    String
   vendor      Vendor         @relation(fields: [vendorId], references: [id])
   price       Decimal        @db.Decimal(12, 2)
-  summary     String
-  attachments String[]
+  description String
+  title       String
+  attachments Attachment[]
   score       Float?
   status      ProposalStatus @default(UNDER_REVIEW)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+
   @@map("proposals")
 }
 
 model Contract {
-  id        String         @id @default(uuid())
-  rfpId     String
-  rfp       Rfp            @relation(fields: [rfpId], references: [id])
-  vendorId  String
-  vendor    Vendor         @relation(fields: [vendorId], references: [id])
-  status    ContractStatus @default(DRAFT)
-  body      String
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id          String         @id @default(uuid())
+  rfpId       String
+  rfp         Rfp            @relation(fields: [rfpId], references: [id])
+  vendorId    String
+  vendor      Vendor         @relation(fields: [vendorId], references: [id])
+  status      ContractStatus @default(DRAFT)
+  body        String
+  attachments Attachment[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
   @@map("contracts")
+}
+
+model Attachment {
+  id           String           @id @default(uuid())
+  rfpId        String?
+  rfp          Rfp?             @relation(fields: [rfpId], references: [id])
+  proposalId   String?
+  proposal     Proposal?        @relation(fields: [proposalId], references: [id])
+  contractId   String?
+  contract     Contract?        @relation(fields: [contractId], references: [id])
+  filename     String
+  fileurl      String
+  filetype     String
+  size         Int
+  fileId       String
+  status       AttachmentStatus
+  associatedTo AssociatedTo
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+enum AttachmentStatus {
+  PENDING
+  UPLOADED
+  FAILED
+}
+
+enum AssociatedTo {
+  RFP
+  CONTRACT
+  PROPOSAL
 }
 
 enum Role {
@@ -119,6 +158,9 @@ enum ContractStatus {
 }
 
 enum ProposalStatus {
+  DRAFT
+  RESUBMIT
+  SUBMITTED
   APPROVED
   REJECTED
   UNDER_REVIEW

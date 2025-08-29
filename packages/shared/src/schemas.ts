@@ -68,8 +68,19 @@ export const ProposalSchema = z.object({
   id: z.string().uuid().optional(),
   rfpId: z.string().uuid(),
   price: z.number().nonnegative(),
-  summary: z.string().min(5),
+  title: z.string().min(5),
+  description: z.string().min(5),
 });
+
+export const BatchPresignSchema = z.object({
+  files: z.array(
+    z.object({
+      filename: z.string().min(1),
+      mimeType: z.string().min(1),
+      size: z.number().int().positive()
+    })
+  ).min(1).max(10)
+})
 
 export const ContractSchema = z.object({
   id: z.string().uuid().optional(),
@@ -78,3 +89,18 @@ export const ContractSchema = z.object({
   status: z.enum(["DRAFT", "", "SIGNED"]).default("DRAFT"),
   body: z.string().min(10)
 });
+
+export const ConfirmUploadsSchema = z.object({
+  files: z.array(
+    z.object({
+      fileId: z.string().uuid(),
+      status: z.enum(["UPLOADED", "FAILED"]),
+      size: z.number().int().positive().optional(),
+    })
+  ).min(1),
+});
+
+export const ConfirmRFPSchema = z.object({
+  status:  z.enum(["PUBLISHED", "UNDER_REVIEW"])
+});
+

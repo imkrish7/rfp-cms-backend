@@ -1,22 +1,28 @@
 import { Router } from "express";
 import { prisma } from "../core/db";
 import { requireAuth } from "../core/auth";
-import { RfpSchema } from "@rfp/shared";
+import { BatchPresignSchema, ConfirmRFPSchema, ConfirmUploadsSchema, RfpSchema } from "@rfp/shared";
 import { StatusCodes } from "http-status-codes";
 import { multerMiddleware } from "../core/multer";
 import { v4 as uuid } from "uuid";
-import { uploadDocs } from "../services/uploadService";
+import { objectURL, presignedURL, uploadDocs } from "../services/uploadService";
 import { logger } from "../core/logger";
+import { minioClient } from "../core/minio";
 
 export const rfpRouter = Router();
 
 rfpRouter.get("/", requireAuth(["ADMIN","PROCUREMENT","LEGAL","VENDOR"]), async (req, res) => {
 	try {
 		const orgId = req.user?.orgId;
-		if (!orgId) {
+		if (!orgId && req.user?.role==="PROCUREMENT") {
 			return res.status(StatusCodes.UNAUTHORIZED).json({error: "unauthorized"})
 		}
-		const rfps = await prisma.rfp.findMany({ where: {orgId}, orderBy: { createdAt: "desc" } });
+		let rfps;
+		if (orgId) {
+			rfps = await prisma.rfp.findMany({ where: { orgId }, orderBy: { createdAt: "desc" } });
+		} else {
+			rfps = await prisma.rfp.findMany({ orderBy: { createdAt: "desc" } })
+		}
   		return res.status(StatusCodes.ACCEPTED).json({rfps});
 	} catch (error) {
 		return res.status(500).json({error: "Internal server error!"})
@@ -36,7 +42,6 @@ rfpRouter.post("/create", requireAuth(["ADMIN","PROCUREMENT"]), multerMiddleware
 				title: parse.data.title,
 				description: parse.data.description,
 				deadline: new Date(parse.data.deadline),
-				// attachments: attachments,
 				timeline: parse.data.timeline,
 				deliverables: parse.data.deliverables,
 				issuedBy: parse.data.issuedBy,
@@ -58,13 +63,188 @@ rfpRouter.post("/create", requireAuth(["ADMIN","PROCUREMENT"]), multerMiddleware
 
 rfpRouter.get("/:id", requireAuth(), async (req, res) => {
 	try {
-		const rfp = await prisma.rfp.findUnique({ where: { id: req.params.id }, include: { proposals: true } });
-		
+		const rfp = await prisma.rfp.findUnique({ where: { id: req.params.id }, include: { proposals: true, attachments: true } });
+		console.log(rfp)
 		if (!rfp) return res.status(404).json({ error: "Not found" });
 		
-		return res.json(rfp);	
+		return res.status(StatusCodes.ACCEPTED).json(rfp);	
 	} catch (error) {
 		return res.status(500).json({error: "Internal server error!"})
 	}
 	
 });
+
+rfpRouter.post("/:id/attachments/presign", requireAuth(["PROCUREMENT"]), async (req, res) => {
+	try {
+		
+		const id = req.params.id;
+		
+		if (!id) {
+			return res.status(StatusCodes.FORBIDDEN).json({error: "Invalid request"})
+		}
+		const validateRequest = BatchPresignSchema.safeParse(req.body);
+
+		if (!validateRequest.success) {
+			return res.status(StatusCodes.BAD_REQUEST).json({ error: "Bad Request" });
+		}
+
+		const rfp = await prisma.rfp.findUnique({ where: { id } });
+
+		if (!rfp) {
+			return res.status(StatusCodes.NOT_FOUND).json({error: "Proposal not found"})
+		}
+
+		if (rfp.status !== "DRAFT") {
+			return res.status(StatusCodes.NOT_ACCEPTABLE).json({error: "Not Allowed"})
+		}
+		console.log(minioClient, "krissjsjjfsdfl")
+		const presignedURLs = await Promise.all(
+			validateRequest.data.files.map(async (file) => {
+				const filepath = uuid();
+				const objectName = `rfp/${id}/${filepath}/${file.filename}`;
+				const uploadUrl = await presignedURL(objectName, 300);
+				const finalUrl = objectURL(objectName);
+
+				await prisma.attachment.create({
+					data: {
+						rfpId: id,
+						filename: file.filename,
+						filetype: file.mimeType,
+						size: file.size,
+						associatedTo: "RFP",
+						status: "PENDING",
+						fileurl: finalUrl,
+						fileId: filepath
+					}
+				})
+
+				return {fileId: filepath, filename: file.filename, uploadUrl, finalUrl}
+			})
+		)
+
+		return res.status(StatusCodes.CREATED).json({uploads: presignedURLs})
+
+	} catch (error) {
+		logger.error(error)
+		return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: "Internal server error"})
+	}
+})
+
+
+rfpRouter.post("/:id/attachments/confirm", requireAuth(["PROCUREMENT"]), async (req, res) => {
+	try {
+		const { id } = req.params;
+		if (!id) {
+			return res.status(StatusCodes.FORBIDDEN).json({error: "Invalid request"})
+		}
+		const validateRequest = ConfirmUploadsSchema.safeParse(req.body);
+
+		if (!validateRequest.success) {
+			return res.status(StatusCodes.BAD_REQUEST).json({ error: "Bad Request" });
+		}
+
+		const rfp = await prisma.rfp.findUnique({ where: { id } });
+
+		if (!rfp) {
+			return res.status(StatusCodes.NOT_FOUND).json({error: "Proposal not found"})
+		}
+
+		if (rfp.status !== "DRAFT") {
+			return res.status(StatusCodes.NOT_ACCEPTABLE).json({error: "Not Allowed"})
+		}
+
+		await Promise.all(
+			validateRequest.data.files.map(async (file) => {
+				await prisma.attachment.updateMany({
+					where: {fileId: file.fileId, rfpId: id},
+					data: {
+						status: file.status,
+					}
+				})
+			})
+		)
+
+		const attachments = await prisma.attachment.findMany({where: {rfpId: id}})
+
+		return res.status(StatusCodes.CREATED).json({attachments})
+
+	} catch (error) {
+		logger.error(error)
+		return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: "Internal server error"})
+	}
+})
+
+
+
+rfpRouter.post("/:id/submit", requireAuth(["PROCUREMENT"]), async (req, res) => {
+	try {
+		const { id } = req.params;
+		if (!id) {
+			return res.status(StatusCodes.FORBIDDEN).json({error: "Invalid request"})
+		}
+		const validateRequest = ConfirmRFPSchema.safeParse(req.body);
+		// console.
+		if (!validateRequest.success) {
+			return res.status(StatusCodes.BAD_REQUEST).json({ error: "Bad Request" });
+		}
+
+		
+		const rfp = await prisma.rfp.findUnique({ where: { id } });
+
+		if (!rfp) {
+			return res.status(StatusCodes.NOT_FOUND).json({error: "Proposal not found"})
+		}
+
+		if (rfp.status !== "DRAFT") {
+			return res.status(StatusCodes.NOT_ACCEPTABLE).json({error: "Not Allowed"})
+		}
+
+		const updatedRFP = await prisma.rfp.update({
+			where: { id },
+			data: {
+				status: validateRequest.data.status
+			}
+		})
+		
+		return res.status(StatusCodes.CREATED).json({rfp: updatedRFP})
+
+	} catch (error) {
+		logger.error(error)
+		return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: "Internal server error"})
+	}
+})
+
+
+
+rfpRouter.delete("/:id", requireAuth(["PROCUREMENT"]), async (req, res) => {
+	try {
+		const { id } = req.params;
+		if (!id) {
+			return res.status(StatusCodes.FORBIDDEN).json({error: "Invalid request"})
+		}
+		
+		const rfp = await prisma.rfp.findUnique({ where: { id } });
+
+		if (!rfp) {
+			return res.status(StatusCodes.NOT_FOUND).json({error: "Proposal not found"})
+		}
+
+		const updatedRFP = await prisma.rfp.delete({
+			where: { id },
+			include: {
+				proposals: true,
+				attachments: true,
+				contracts: true
+			}
+		})
+		
+		return res.status(StatusCodes.CREATED).json({message: "RFP deleted successfully"})
+
+	} catch (error) {
+		logger.error(error)
+		return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: "Internal server error"})
+	}
+})
+
+
+

@@ -1,39 +1,22 @@
 import { Router } from "express";
 import { prisma } from "../core/db";
 import { requireAuth } from "../core/auth";
-import { ProposalSchema } from "@rfp/shared";
+import { BatchPresignSchema, ProposalSchema } from "@rfp/shared";
 import { StatusCodes } from "http-status-codes";
 import { queues } from "../core/queue.js";
 import { multerMiddleware } from "../core/multer";
 import { v4 as uuid } from "uuid";
-import { uploadDocs } from "../services/uploadService";
+import { objectURL, presignedURL, uploadDocs } from "../services/uploadService";
+import { logger } from "../core/logger";
 
 export const proposalRouter = Router();
 
-proposalRouter.post("/create", requireAuth(["VENDOR"]), multerMiddleware.array("files", 10), async (req, res) => {
+proposalRouter.post("/create", requireAuth(["VENDOR"]), async (req, res) => {
     const parsed = ProposalSchema.safeParse(req.body);
     try {
         if (!parsed.success) return res.status(StatusCodes.BAD_REQUEST).json(parsed.error.flatten());
         
         const p = parsed.data;
-
-        let attachments = [];
-        
-        if (req.files instanceof Array) {
-            for (const file of req.files) {
-                const prefix = parsed.data.rfpId;
-                const objectName = `proposal_attachment_${uuid()}`
-                const docMetadata = {
-                    name: file.originalname,
-                    type: file.mimetype,
-                    size: file.size
-                }
-
-                let _attachment = await uploadDocs(prefix, objectName, file.buffer, docMetadata);
-
-                attachments.push(objectName)
-            }
-        }
 
         const vendorId = req.user?.vendorId!;
         
@@ -42,11 +25,11 @@ proposalRouter.post("/create", requireAuth(["VENDOR"]), multerMiddleware.array("
                 rfpId: p.rfpId,
                 vendorId: vendorId,
                 price: p.price,
-                summary: p.summary,
-                attachments: attachments,
+                description: p.description,
+                title: p.title
             }
         });
-        await queues.analysis.add("analyze-proposal", { proposalId: proposal.id }, { removeOnComplete: true, attempts: 3 });
+        // await queues.analysis.add("analyze-proposal", { proposalId: proposal.id }, { removeOnComplete: true, attempts: 3 });
         
 		return res.status(StatusCodes.CREATED).json(proposal);
     } catch (error) {
@@ -66,3 +49,60 @@ proposalRouter.post("/:id/score", requireAuth(["PROCUREMENT","LEGAL","ADMIN"]), 
 	}
 	
 });
+
+proposalRouter.post("/:id/attachments/presign", requireAuth(["VENDOR"]), async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            return res.status(StatusCodes.FORBIDDEN).json({error: "Invalid request"})
+        }
+        const validateRequest = BatchPresignSchema.safeParse(req.body);
+
+        if (!validateRequest.success) {
+            return res.status(StatusCodes.BAD_REQUEST).json({ error: "Bad Request" });
+        }
+
+        const proposal = await prisma.proposal.findUnique({ where: { id } });
+
+        if (!proposal) {
+            return res.status(StatusCodes.NOT_FOUND).json({error: "Proposal not found"})
+        }
+
+        if (proposal.status !== "DRAFT" && proposal.status === "RESUBMIT") {
+            return res.status(StatusCodes.NOT_ACCEPTABLE).json({error: "Not Allowed"})
+        }
+
+        const presignedURLs = await Promise.all(
+            validateRequest.data.files.map(async (file) => {
+                const filepath = uuid();
+                const objectName = `proposals/${id}/${filepath}/${file.filename}`;
+                const uploadUrl = await presignedURL(objectName, 300);
+                const finalURL = objectURL(objectName);
+
+                await prisma.attachment.create({
+                    data: {
+                        proposalId: id,
+                        filename: file.filename,
+                        filetype: file.mimeType,
+                        size: file.size,
+                        associatedTo: "PROPOSAL",
+                        status: "PENDING",
+                        fileurl: finalURL,
+                        fileId: filepath
+                    }
+                })
+
+                return {filepath, filename: file.filename, uploadUrl, finalURL}
+            })
+        )
+
+        return res.status(StatusCodes.CREATED).json({uploads: presignedURLs})
+
+    } catch (error) {
+
+        logger.error(error)
+
+        return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({error: "Internal server error"})
+        
+    }
+})

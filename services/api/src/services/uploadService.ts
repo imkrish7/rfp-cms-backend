@@ -23,3 +23,34 @@ export const uploadDocs = async (prefix: string, objectName: string, fileBuffer:
         throw error;
     }
 }
+
+
+export const presignedURL = async (filename: string, expiry: number = 300) => {
+    try {
+        let bucketName = process.env.MINIO_BUCKET_NAME!;
+        if (!bucketName) {
+            throw new Error("Bucket name is required! Please provide a valid bucket name in .env")
+        }
+        const presignedURL = await minioClient.presignedPutObject(bucketName, filename, expiry)
+        
+        return presignedURL
+    } catch (error) {
+        throw error;
+    }
+}
+
+
+export const objectURL = (object: string) => {
+    const baseURI = process.env.MINIO_URL;
+    const bucket = process.env.MINIO_BUCKET_NAME!;
+    if (!baseURI) {
+        throw new Error("Minio url is required!")
+    }
+
+    if (!bucket) {
+        throw new Error("Minio bucket name is required!")
+    }
+
+    return `${baseURI}/${bucket}/${object}`
+    
+}

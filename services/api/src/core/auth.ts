@@ -26,6 +26,7 @@ export function requireAuth(roles?: string[]) {
         user["orgId"] = decoded.orgId
       }
       req.user = user;
+      
       if (roles && !roles.includes(decoded.role)) {
         return res.status(403).json({ error: "Forbidden" });
       }
