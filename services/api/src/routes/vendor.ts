@@ -17,7 +17,7 @@ vendorRouter.post("/create", requireAuth(["VENDOR"]), async (req: Request, res: 
             return res.status(StatusCodes.BAD_REQUEST).json({error: "Data Validation failed!"})
         }
 
-        const { name, logo, description, website, contactNumber, contactPerson, gstin, businessCategory } = validatedData.data;
+        const { name, logo, description, website, contactEmail, contactPerson, gstin, businessCategory } = validatedData.data;
 
         const userId = req.user?.sub!
 
@@ -27,7 +27,7 @@ vendorRouter.post("/create", requireAuth(["VENDOR"]), async (req: Request, res: 
                     name,
                     logo,
                     website,
-                    contactNumber,
+                    contactEmail,
                     contactPerson,
                     gstin,
                     businessCategory,

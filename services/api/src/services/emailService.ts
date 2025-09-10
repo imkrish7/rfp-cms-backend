@@ -16,18 +16,16 @@ const transporter = nodemailer.createTransport(transportConfig);
 
 export const sendOTP = async (to: string, otp: string) => {
     try {
-        logger.info("Preparing email verification")
         const newMail = {
             from: `RFP CMS ${process.env.ETHEREAL_USERNAME!}`,
             to: to,
             subject: 'Email Verification OTP',
             html: `<b>Here is you verification code ${otp}</b>`
         }
-        logger.info("Verification email prepared!")
-        logger.info("Sending email...")
         await transporter.sendMail(newMail)
-        logger.info("Email sent!")
     } catch (error) {
         logger.error(error)
     }
 }
+
+

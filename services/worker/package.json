@@ -1,24 +1,12 @@
 {
-  "name": "@rfp/worker",
-  "version": "0.2.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js"
+    "dev": "maizzle serve",
+    "build": "maizzle build production"
   },
   "dependencies": {
-    "bullmq": "^5.7.7",
-    "dotenv": "^16.4.5",
-    "nodemailer": "^7.0.5",
-    "openai": "^4.58.1",
-    "pino": "^9.0.0",
-    "pino-pretty": "^13.1.1",
-    "redis": "^5.8.2",
-    "socket.io": "^4.8.1"
-  },
-  "devDependencies": {
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^5.4.0"
+    "@maizzle/framework": "latest",
+    "tailwindcss-preset-email": "latest"
   }
 }

@@ -8,6 +8,7 @@ import { sendOTP } from "../services/emailService";
 import { logger } from "../core/logger";
 import { generateOTP } from "../utils/otp.utils";
 import { AuthUser } from "../interfaces/Auth";
+import { queues } from "../core/queue";
 
 export const authRouter = Router();
 
@@ -90,7 +91,11 @@ authRouter.post("/signup", async (req, res) => {
 			}
 		})
 		// Use email service for verification and next step
-		await sendOTP(email, verificationCode);
+		// await sendOTP(email, verificationCode);
+		await queues.notifications.add("ACTIVATE_ACCOUNT_OTP", {
+			to: newUser.email,
+			otp: verificationCode
+		})
 		return res.status(StatusCodes.CREATED).json({message: "Verify your email and complete the next step!"})
 	} catch (error) {
 		console.log(error)

@@ -46,7 +46,7 @@ model Vendor {
   website          String?
   logo             String?
   contactPerson    String
-  contactNumber    String
+  contactEmail     String
   gstin            String
   businessCategory String
   users            User[]
@@ -86,7 +86,7 @@ model Proposal {
   rfp         Rfp            @relation(fields: [rfpId], references: [id])
   vendorId    String
   vendor      Vendor         @relation(fields: [vendorId], references: [id])
-  price       Decimal        @db.Decimal(12, 2)
+  cost        Decimal        @db.Decimal(12, 2)
   description String
   title       String
   attachments Attachment[]

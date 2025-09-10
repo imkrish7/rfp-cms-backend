@@ -1,6 +1,4 @@
-
-export enum Notification {
-    "PROPOSAL_SUBMITED" = "proposal_submited",
-    "NEW_RFP" = "new_rfp",
-    "PROPOSAL_STATUS_UPDATE" = "proposal_status_update",
-}
+export const NEW_RFP = "NEW_RFP";
+export const PROPOSAL_SUBMITED = "PROPOSAL_SUBMITTED";
+export const PROPOSAL_STATUS_UPDATE = "PROPOSAL_STATUS_UPDATE";
+export const ACTIVATE_ACCOUNT_OTP = "ACTIVATE_ACCOUNT_OTP";

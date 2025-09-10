@@ -31,7 +31,7 @@ export const OrgSchema = z.object({
 export const VendorSchema = z.object({
   name: z.string().min(2),
   logo: z.string().optional(),
-  contactNumber: z.string().min(10).max(14),
+  contactEmail: z.string().email(),
   contactPerson: z.string().min(2),
   description: z.string().min(100),
   gstin: z.string().min(15).max(20),
@@ -67,7 +67,7 @@ export const RfpSchema = z.object({
 export const ProposalSchema = z.object({
   id: z.string().uuid().optional(),
   rfpId: z.string().uuid(),
-  price: z.number().nonnegative(),
+  cost: z.number().nonnegative(),
   title: z.string().min(5),
   description: z.string().min(5),
 });
@@ -103,4 +103,8 @@ export const ConfirmUploadsSchema = z.object({
 export const ConfirmRFPSchema = z.object({
   status:  z.enum(["PUBLISHED", "UNDER_REVIEW"])
 });
+
+export const UpdateProposalStatus = z.object({
+  status: z.enum(["SUBMIT", "UNDER_REVIEW"])
+})
 

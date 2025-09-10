@@ -8,6 +8,7 @@ import { v4 as uuid } from "uuid";
 import { objectURL, presignedURL, uploadDocs } from "../services/uploadService";
 import { logger } from "../core/logger";
 import { minioClient } from "../core/minio";
+import { queues } from "../core/queue";
 
 export const rfpRouter = Router();
 
@@ -21,7 +22,7 @@ rfpRouter.get("/", requireAuth(["ADMIN","PROCUREMENT","LEGAL","VENDOR"]), async 
 		if (orgId) {
 			rfps = await prisma.rfp.findMany({ where: { orgId }, orderBy: { createdAt: "desc" } });
 		} else {
-			rfps = await prisma.rfp.findMany({ orderBy: { createdAt: "desc" } })
+			rfps = await prisma.rfp.findMany({ where: {status: "PUBLISHED"}, orderBy: { createdAt: "desc" } })
 		}
   		return res.status(StatusCodes.ACCEPTED).json({rfps});
 	} catch (error) {
@@ -64,7 +65,6 @@ rfpRouter.post("/create", requireAuth(["ADMIN","PROCUREMENT"]), multerMiddleware
 rfpRouter.get("/:id", requireAuth(), async (req, res) => {
 	try {
 		const rfp = await prisma.rfp.findUnique({ where: { id: req.params.id }, include: { proposals: true, attachments: true } });
-		console.log(rfp)
 		if (!rfp) return res.status(404).json({ error: "Not found" });
 		
 		return res.status(StatusCodes.ACCEPTED).json(rfp);	
@@ -205,6 +205,20 @@ rfpRouter.post("/:id/submit", requireAuth(["PROCUREMENT"]), async (req, res) => 
 				status: validateRequest.data.status
 			}
 		})
+
+		if (validateRequest.data.status === "PUBLISHED") {
+			const vendors = await prisma.vendor.findMany();
+			for (const vendor of vendors) {
+				queues.notifications.add("new_rfp",{
+					to: {
+						"email": vendor.contactNumber,
+						"id": vendor.id
+					},
+					message: `<b>New ${rfp.title} has been published`
+				})
+			}
+
+		}
 		
 		return res.status(StatusCodes.CREATED).json({rfp: updatedRFP})
 
