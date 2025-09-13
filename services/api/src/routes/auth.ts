@@ -104,7 +104,7 @@ authRouter.post("/signup", async (req, res) => {
 });
 
 
-authRouter.post("/email/verification", async (req, res) => {
+authRouter.post("/verification", async (req, res) => {
 
 	try {
 		const parsedData = EmailVerificationSchema.safeParse(req.body)
@@ -129,12 +129,29 @@ authRouter.post("/email/verification", async (req, res) => {
 				isActivated: true
 			}
 		})
+		let payload: AuthUser = {
+			sub: user.id,
+			role: user.role,
+			vendorId: null,
+			orgId: null
+		}
 
-		const auth_token = await signJwt({ sub: user.id, role: user.role });
+		let nextStep = "COMPLETE_PROFILE"
 
-		const nextStep = "details"
+		if (user.role === "VENDOR") {
+			payload["vendorId"] = user.vendorId
+			
+		} else if (user.role === "PROCUREMENT") {
+			payload["orgId"] = user.orgId
+		}
 
-		return res.status(StatusCodes.ACCEPTED).json({auth_token, role: user.role, nextStep })
+		if (user.vendorId || user.orgId) {
+			nextStep = "DASHBOARD"
+		}
+
+		const accessToken = await signJwt(payload);
+
+		return res.status(StatusCodes.ACCEPTED).json({accessToken, role: user.role, nextStep })
 
 	} catch (error) {
 		logger.error(error)
@@ -143,7 +160,7 @@ authRouter.post("/email/verification", async (req, res) => {
 });
 
 
-authRouter.post("/email/verification/resend", async (req, res) => {
+authRouter.post("/verification/resend", async (req, res) => {
 
 	try {
 		const parsedData = ResendEmailVerificationSchema.safeParse(req.body)
@@ -166,7 +183,10 @@ authRouter.post("/email/verification/resend", async (req, res) => {
 			}
 		})
 
-		await sendOTP(user.email, emailVerificationCode)
+		await queues.notifications.add("ACTIVATE_ACCOUNT_OTP", {
+			to: user.email,
+			otp: emailVerificationCode
+		})
 
 		return res.status(StatusCodes.ACCEPTED).json({ message: "Email sent!" })
 

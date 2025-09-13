@@ -57,9 +57,9 @@ model Vendor {
 }
 
 model Rfp {
-  id                 String       @id @default(uuid())
+  id                 String         @id @default(uuid())
   orgId              String
-  org                Org          @relation(fields: [orgId], references: [id])
+  org                Org            @relation(fields: [orgId], references: [id])
   title              String
   issuedBy           String
   issuedDate         DateTime
@@ -70,30 +70,32 @@ model Rfp {
   description        String
   deadline           DateTime
   attachments        Attachment[]
-  status             RFPStatus    @default(DRAFT)
+  status             RFPStatus      @default(DRAFT)
   proposalLimit      Int?
   proposals          Proposal[]
   contracts          Contract[]
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  embeddings         RFPEmbedding[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   @@map("rfps")
 }
 
 model Proposal {
-  id          String         @id @default(uuid())
+  id          String              @id @default(uuid())
   rfpId       String
-  rfp         Rfp            @relation(fields: [rfpId], references: [id])
+  rfp         Rfp                 @relation(fields: [rfpId], references: [id])
   vendorId    String
-  vendor      Vendor         @relation(fields: [vendorId], references: [id])
-  cost        Decimal        @db.Decimal(12, 2)
+  vendor      Vendor              @relation(fields: [vendorId], references: [id])
+  cost        Decimal             @db.Decimal(12, 2)
   description String
   title       String
   attachments Attachment[]
+  embeddings  ProposalEmbedding[]
   score       Float?
-  status      ProposalStatus @default(UNDER_REVIEW)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  status      ProposalStatus      @default(UNDER_REVIEW)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   @@map("proposals")
 }
@@ -130,6 +132,28 @@ model Attachment {
   associatedTo AssociatedTo
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
+}
+
+model RFPEmbedding {
+  id        String                @id @default(uuid())
+  rfpId     String
+  rfp       Rfp                   @relation(fields: [rfpId], references: [id])
+  embeding  Unsupported("vector")
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@map("rfp_embedding")
+}
+
+model ProposalEmbedding {
+  id         String                @id @default(uuid())
+  proposalId String
+  proposal   Proposal              @relation(fields: [proposalId], references: [id])
+  embeding   Unsupported("vector")
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  @@map("proposal_embedding")
 }
 
 enum AttachmentStatus {
