@@ -10,7 +10,6 @@ export const sendEmail = async (to: string, template: string, subject: string) =
             subject: subject,
             html: template
         }
-        console.log(newMail, "drnfMDKDFGK")
         await transporter.sendMail(newMail)
     } catch (error) {
         logger.error(error)

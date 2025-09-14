@@ -1,7 +1,6 @@
 import { Router } from "express";
-import { prisma } from "../core/db";
 import { requireAuth, signJwt } from "../core/auth";
-import { EmailVerificationSchema, LoginSchema, ResendEmailVerificationSchema, SignupSchema } from "@rfp/shared"
+import { EmailVerificationSchema, LoginSchema, prisma, ResendEmailVerificationSchema, SignupSchema } from "@rfp/shared"
 import { StatusCodes } from "http-status-codes";
 import { camparePassword, hashPassword } from "../core/bycrypt";
 import { sendOTP } from "../services/emailService";

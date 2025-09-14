@@ -2,12 +2,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "maizzle build production"
+    "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
-    "@maizzle/framework": "latest",
-    "pug": "^3.0.3",
-    "tailwindcss-preset-email": "latest"
+    "@rfp/shared": "1.0.0",
+    "ollama": "^0.5.17",
+    "pug": "^3.0.3"
   }
 }

@@ -1,7 +1,6 @@
 import { Router } from "express";
-import { prisma } from "../core/db";
 import { requireAuth } from "../core/auth";
-import { BatchPresignSchema, ConfirmUploadsSchema, ProposalSchema, UpdateProposalStatus } from "@rfp/shared";
+import { BatchPresignSchema, ConfirmUploadsSchema, prisma, ProposalSchema, UpdateProposalStatus } from "@rfp/shared";
 import { StatusCodes } from "http-status-codes";
 import { queues } from "../core/queue.js";
 import { multerMiddleware } from "../core/multer";

@@ -1,7 +1,6 @@
 import { Router } from "express";
-import { prisma } from "../core/db.js";
 import { requireAuth } from "../core/auth.js";
-import { ContractSchema } from "@rfp/shared";
+import { ContractSchema, prisma } from "@rfp/shared";
 import { StatusCodes } from "http-status-codes";
 import { queues } from "../core/queue.js";
 

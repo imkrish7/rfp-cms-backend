@@ -1,8 +1,7 @@
 import { Request, Response, Router } from "express";
 import { requireAuth } from "../core/auth";
 import { StatusCodes } from "http-status-codes";
-import { OrgSchema } from "@rfp/shared";
-import { prisma } from "../core/db";
+import { OrgSchema, prisma } from "@rfp/shared";
 
 export const organisationRouter = Router()
 

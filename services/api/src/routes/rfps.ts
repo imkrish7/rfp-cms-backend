@@ -1,7 +1,6 @@
 import { Router } from "express";
-import { prisma } from "../core/db";
 import { requireAuth } from "../core/auth";
-import { BatchPresignSchema, ConfirmRFPSchema, ConfirmUploadsSchema, RfpSchema } from "@rfp/shared";
+import { BatchPresignSchema, ConfirmRFPSchema, ConfirmUploadsSchema, prisma, RfpSchema } from "@rfp/shared";
 import { StatusCodes } from "http-status-codes";
 import { multerMiddleware } from "../core/multer";
 import { v4 as uuid } from "uuid";
@@ -211,7 +210,7 @@ rfpRouter.post("/:id/submit", requireAuth(["PROCUREMENT"]), async (req, res) => 
 			for (const vendor of vendors) {
 				queues.notifications.add("new_rfp",{
 					to: {
-						"email": vendor.contactNumber,
+						"email": vendor.contactEmail,
 						"id": vendor.id
 					},
 					message: `<b>New ${rfp.title} has been published`

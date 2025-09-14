@@ -16,6 +16,11 @@ const queues = {
 new Worker("processing", async job => {
 	logger.info({ jobId: job.id, name: job.name }, "analyzing proposal");
 	// TODO: call LLM (OpenAI) and persist results via API/DB
+	switch (job.name) {
+		case "RFP": {
+			
+		}
+	}
 	return { ok: true };
 }, { connection });
 

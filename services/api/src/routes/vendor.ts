@@ -1,8 +1,7 @@
 import { Request, Response, Router } from "express";
 import { requireAuth } from "../core/auth";
 import { StatusCodes } from "http-status-codes";
-import { VendorSchema } from "@rfp/shared";
-import { prisma } from "../core/db";
+import { prisma, VendorSchema } from "@rfp/shared";
 import { logger } from "../core/logger";
 
 export const vendorRouter = Router()
