@@ -75,6 +75,7 @@ model Rfp {
   proposals          Proposal[]
   contracts          Contract[]
   embeddings         RFPEmbedding[]
+  chatAvailable      Boolean
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
@@ -138,22 +139,22 @@ model RFPEmbedding {
   id        String                @id @default(uuid())
   rfpId     String
   rfp       Rfp                   @relation(fields: [rfpId], references: [id])
-  embeding  Unsupported("vector")
+  content   String
+  metadata  Json
+  embedding Unsupported("vector")
   createdAt DateTime              @default(now())
   updatedAt DateTime              @updatedAt
-
-  @@map("rfp_embedding")
 }
 
 model ProposalEmbedding {
   id         String                @id @default(uuid())
   proposalId String
   proposal   Proposal              @relation(fields: [proposalId], references: [id])
-  embeding   Unsupported("vector")
+  content    String
+  metadata   Json
+  embedding  Unsupported("vector")
   createdAt  DateTime              @default(now())
   updatedAt  DateTime              @updatedAt
-
-  @@map("proposal_embedding")
 }
 
 enum AttachmentStatus {

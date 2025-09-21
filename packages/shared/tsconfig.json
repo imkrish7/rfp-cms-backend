@@ -6,11 +6,12 @@
     "outDir": "dist",
     "strict": true,
     "esModuleInterop": true,
+    "rootDir": ".",
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
   "include": [
-    "src",
+    "src/",
     "./prisma"
   ]
 }
