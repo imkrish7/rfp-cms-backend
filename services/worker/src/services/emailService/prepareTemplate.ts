@@ -1,8 +1,7 @@
-import fs from "fs/promises";
+
 import path from "path";
 import { fileURLToPath } from "url";
 import pug from "pug";
-import juice from "juice"
 
 export const prepareTemplate = async <TData extends pug.LocalsObject>(templateName: string, data: TData) => {
     try {

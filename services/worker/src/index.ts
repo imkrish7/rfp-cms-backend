@@ -5,6 +5,7 @@ import { connection } from "./core/redis";
 import { ACTIVATE_ACCOUNT_OTP, NEW_RFP, PROPOSAL_STATUS_UPDATE, PROPOSAL_SUBMITED } from "./interface/notification";
 import { EMAIL_OTP } from "./interface/email";
 import "./emailWorker";
+import { RFPProcessing } from "./services/processingService";
 
 
 const queues = {
@@ -13,12 +14,12 @@ const queues = {
 }
 
 
-new Worker("processing", async job => {
+new Worker("analysis", async job => {
 	logger.info({ jobId: job.id, name: job.name }, "analyzing proposal");
 	// TODO: call LLM (OpenAI) and persist results via API/DB
 	switch (job.name) {
 		case "RFP": {
-			
+			await RFPProcessing(job.data);
 		}
 	}
 	return { ok: true };
@@ -63,8 +64,6 @@ new Worker("notifications", async job => {
 export async function initQueues() {
   await Promise.all(Object.values(queues).map(q => q.waitUntilReady()));
 }
-
-logger.info("Worker started");
 
 initQueues().then(() => {
 	console.log("Email queue started")

@@ -75,7 +75,7 @@ model Rfp {
   proposals          Proposal[]
   contracts          Contract[]
   embeddings         RFPEmbedding[]
-  chatAvailable      Boolean
+  isRFPProcessed     Boolean
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
@@ -127,20 +127,23 @@ model Attachment {
   filename     String
   fileurl      String
   filetype     String
+  objectPath   String
   size         Int
   fileId       String
   status       AttachmentStatus
   associatedTo AssociatedTo
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
+
+  @@map("attachments")
 }
 
 model RFPEmbedding {
-  id        String                @id @default(uuid())
+  id        String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   rfpId     String
   rfp       Rfp                   @relation(fields: [rfpId], references: [id])
   content   String
-  metadata  Json
+  metadata  Json?
   embedding Unsupported("vector")
   createdAt DateTime              @default(now())
   updatedAt DateTime              @updatedAt
@@ -151,7 +154,7 @@ model ProposalEmbedding {
   proposalId String
   proposal   Proposal              @relation(fields: [proposalId], references: [id])
   content    String
-  metadata   Json
+  metadata   Json?
   embedding  Unsupported("vector")
   createdAt  DateTime              @default(now())
   updatedAt  DateTime              @updatedAt

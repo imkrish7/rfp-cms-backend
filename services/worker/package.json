@@ -5,8 +5,18 @@
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
+    "@langchain/community": "^0.3.56",
+    "@langchain/core": "^0.3.76",
     "@rfp/shared": "1.0.0",
+    "langchain": "^0.3.34",
+    "minio": "^8.0.6",
+    "mupdf": "^1.26.4",
     "ollama": "^0.5.17",
+    "pdf-parse": "^1.1.1",
     "pug": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/pdf-parse": "^1.1.5",
+    "@types/pug": "^2.0.10"
   }
 }

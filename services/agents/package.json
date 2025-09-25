@@ -1,0 +1,32 @@
+{
+  "name": "agents",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index",
+  "scripts": {
+    "dev": "tsx watch src/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@langchain/community": "^0.3.56",
+    "@langchain/core": "^0.3.77",
+    "@langchain/langgraph": "^0.4.9",
+    "@langchain/langgraph-checkpoint-mongodb": "^0.1.1",
+    "@langchain/mongodb": "^0.1.0",
+    "@langchain/ollama": "^0.2.4",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "http-status-codes": "^2.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.20.0",
+    "ollama": "^0.5.18",
+    "zod": "^3.25.76"
+  }
+}

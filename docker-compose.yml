@@ -9,9 +9,46 @@ services:
       POSTGRES_USER: rfp_user
       POSTGRES_PASSWORD: rfp_pass
     ports:
-      - "5433:5432"
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rfp_user -d rfp"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - backend
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - postgres-log:/var/lib/docker/container/<container-id>
+
+  
+  mongodb-atlas:
+    image: mongodb/mongodb-atlas-local:latest
+    container_name: rfp_atlas
+    ports:
+      - "27017:27017"
+    environment:
+      MONGODB_INITDB_ROOT_USERNAME: admin
+      MONGODB_INITDB_ROOT_PASSWORD: admin123
+      MONGODB_INITDB_DATABASE: chat_store
+    healthcheck:
+      test: ["CMD", "mongosh", "mongodb://admin:admin123@localhost:27017/?authSource=admin", "--eval", "db.adminCommand('ping')"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    restart: always
+    volumes:
+      - mongo_data:/data/db
+      - config:/data/configdb
+      - ./init-scripts:/docker-enttrypoint-initdb.d:ro
+    
 
   redis:
     image: redis:7-alpine
@@ -24,13 +61,21 @@ services:
     container_name: rfp_minio
     environment:
       MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_PASSWORD: minio4321
     command: server /data --console-address ":9001"
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
       - minio_data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
 
   api:
     build:
@@ -56,6 +101,8 @@ services:
       - "3000:3000"
     volumes:
       - ./:/app
+    networks:
+      - backend
     working_dir: /app/services/api
     command: sh -c "cd /app && npm install && cd services/api && npx prisma migrate deploy || npx prisma migrate dev --name init && npm run dev"
 
@@ -74,8 +121,17 @@ services:
     volumes:
       - ./:/app
     working_dir: /app/services/worker
+    networks:
+      - backend
     command: sh -c "cd /app && npm install && cd services/worker && npm run dev"
 
 volumes:
   pgdata:
   minio_data:
+  postgres-log:
+  mongo_data:
+  config:
+  init-scripts:
+
+networks:
+  backend:
