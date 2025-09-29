@@ -1,14 +1,18 @@
-import { MongoClient } from "mongodb";
+import { Db, MongoClient } from "mongodb";
 
-async function connectDB() {
-    let mongoClient = null;
+
+let client: MongoClient;
+let db: Db;
+
+async function connectDB(): Promise<{db: Db, client: MongoClient}> {
     try {
-        mongoClient = new MongoClient(process.env.MONGODB_URI as string)
-        await mongoClient.connect();
+        if (db && client) return {client , db};
+        client = new MongoClient(process.env.MONGODB_URI as string)
+        await client.connect();
 
-        await mongoClient.db("rfp").command({ ping: 1 });
+        db = client.db("rfp");
 
-        return mongoClient;
+        return {client, db}
         
     } catch (error) {
         console.log("Error: in connecting mongo server");

@@ -1,7 +1,10 @@
 import "dotenv/config"
-import express, { Request, Response } from "express"
-import { StatusCodes } from "http-status-codes";
+import cors from "cors"
+import express from "express"
 import https from "node:https";
+import { connectDB } from "./core/db";
+import { routes as chatRFPRoutes } from "./core/routes/rfpChat";
+
 
 const PORT = process.env.PORT;
 
@@ -11,18 +14,30 @@ if (!PORT) {
 
 const app = express();
 
+app.use(express.json())
+app.use(cors())
 
-app.post("/chat/:rfpId", async (req: Request, res: Response) => {
-    try {
-        
-    } catch (error) {
-        
-        return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({message: "Our server is dead!"})
-    }
-    
+app.use("/", chatRFPRoutes)
+app.get("/", (req, res) => {
+    return res.json({message: "Hello world"})
 })
 
+async function runServer() {
+    try {
+        await connectDB()
+        // const server = https.createServer(app)
+        // server.listen(PORT);
+        app.listen(PORT, () => {
+            console.log("APP is running!")
+        })
+    } catch (error) {
+        console.error(error)
+    }
+}
 
-const server = https.createServer(app)
+runServer().then(() => {
+    console.log("Server is running on:", PORT)
+}).catch(() => {
+    console.log("Error: Server is dead")
+})
 
-server.listen(PORT);

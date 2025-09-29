@@ -160,6 +160,15 @@ model ProposalEmbedding {
   updatedAt  DateTime              @updatedAt
 }
 
+model RFPTalk {
+  id        String   @id @default(uuid())
+  rfpId     String
+  vendorId  String
+  threadId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum AttachmentStatus {
   PENDING
   UPLOADED
