@@ -3,7 +3,7 @@ import cors from "cors"
 import express from "express"
 import https from "node:https";
 import { connectDB } from "./core/db";
-import { routes as chatRFPRoutes } from "./core/routes/rfpChat";
+import { routes as chatRFPRoutes } from "./routes/rfpChat";
 
 
 const PORT = process.env.PORT;

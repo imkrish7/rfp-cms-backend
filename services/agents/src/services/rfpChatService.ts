@@ -1,13 +1,14 @@
-import { StateGraph, END, Annotation, CompiledStateGraph } from "@langchain/langgraph";
+import { StateGraph, END, Annotation, CompiledStateGraph, MemorySaver } from "@langchain/langgraph";
 import { ChatOllama } from "@langchain/ollama";
 import { z } from 'zod'
 import { embedding } from "../core/embedding"
-import { SystemMessage, HumanMessage, AIMessageChunk } from "@langchain/core/messages";
+import { SystemMessage, HumanMessage, AIMessageChunk, MessageContentComplex } from "@langchain/core/messages";
 import { prisma } from "@rfp/shared";
 import { MongoDBSaver } from "@langchain/langgraph-checkpoint-mongodb";
 import { ChatPromptTemplate } from "@langchain/core/prompts"
 import { connectDB } from "../core/db";
 import { NodeNames } from "../interfaces/graph";
+import { wrapSDK } from "langsmith/wrappers"
 import fs from "node:fs/promises"
 
 const RouteSchema = z.object({
@@ -16,6 +17,8 @@ const RouteSchema = z.object({
     )
 })
 
+// const wrapper = wrapSDK(ChatOllama)
+
 type Route = z.infer<typeof RouteSchema>;
 
 const StateAnnotation = Annotation.Root({
@@ -23,17 +26,20 @@ const StateAnnotation = Annotation.Root({
     input: Annotation<string>,
     context: Annotation<string[]>,
     decision: Annotation<string>,
-    output: Annotation<AIMessageChunk>
+    output: Annotation<MessageContentComplex[]|string>
 })
 
 let agent: CompiledStateGraph<typeof StateAnnotation.State, Partial<typeof StateAnnotation.State>, NodeNames>;
 
-const llm = new ChatOllama({
+const llm =new ChatOllama({
     model: "llama3.2",
+    temperature: 0,
+    streaming: true
 })
-const llmRouter = llm.withStructuredOutput<Route>(RouteSchema);
+// const llmRouter = llm.withStructuredOutput<Route>(RouteSchema);clear
+
 const systemPrompt = ChatPromptTemplate.fromTemplate(`You are a helpful assistant answering questions based on the uploaded documents.
-            Use ONLY the provided context to answer. If question is not relevent to documents you should suggest some question on documents.
+            Use ONLY the provided context to answer. If question is not relevent to documents you should suggest some question based on documents to users.
 
             Context:
             {context}
@@ -48,7 +54,6 @@ const chain = systemPrompt.pipe(llm);
 const retriever = async (state: typeof StateAnnotation.State): Promise<Partial<typeof StateAnnotation.State>> => {
     const embededQuery = await embedding.embedQuery(state.input);
  
-
     const collectContext = await prisma.$queryRaw<{id: string, content: string}[]>`
         SELECT id, content
         FROM "RFPEmbedding" WHERE "rfpId"=${state.rfpId}
@@ -57,68 +62,77 @@ const retriever = async (state: typeof StateAnnotation.State): Promise<Partial<t
     `;
 
     let context = [...collectContext.map(ctx => ctx.content)]
+
     return { context }
 }
 
-const chatbot = async (state: typeof StateAnnotation.State): Promise<Partial<typeof StateAnnotation.State>> => {
-
-    const retieveDocs = await prisma.rFPEmbedding.findMany({
-        where: {rfpId: state.rfpId}
-    })
-
-    const context = retieveDocs.map(ctx => ctx.content);
-
-    const response = await chain.invoke({
-        context: context,
-        question: state.input
-    })
-
-    console.log(response)
-
-    return { output: response}
-}
-
-const summarize = async (state: typeof StateAnnotation.State): Promise<Partial<typeof StateAnnotation.State>> => {
+const summarize = async (state: typeof StateAnnotation.State): Promise<typeof StateAnnotation.State> => {
     
     const response = await chain.invoke({
-        context: state.context,
+        context: state.context.join(" "),
         question: state.input
     })
 
-    return {output: response}
+    return {...state, output: response.content}
 
 }
-
-const router = async (state: typeof StateAnnotation.State): Promise<Partial<typeof StateAnnotation.State>> => {
-    console.log("Router:\n\n")
-    console.dir(state);
-    const decision = await llmRouter.invoke([
-        new SystemMessage("Route the input to chatbot, retriever based on the user's request."),
-        new HumanMessage(state.input)
-    ])
-
-    console.log(decision, "=========")
-
-    return {decision: decision.step }
-}
-
-const routerDecision = async (state: typeof StateAnnotation.State)=> {
-    if (state.decision === 'chatbot') {
-        return "chatbot"
-    } else if (state.decision === "retriever") {
-        return "retriever"
-    } else {
-        return "chatbot"
-    }
-}
-
 
 async function getAgent(): Promise<CompiledStateGraph<typeof StateAnnotation.State, Partial<typeof StateAnnotation.State>, NodeNames>> {
 
     try {
-        const {client} = await connectDB();
-        if(agent) return agent
-        const checkpointer = new MongoDBSaver({ client, dbName: "rfp"})
+        const {client}= await connectDB();
+        if (agent) return agent;
+const checkpointer = new MongoDBSaver({ client, dbName: "rfp"})
+        // const checkpointer = new MemorySaver();
+
+        const workflow = new StateGraph(StateAnnotation)
+            .addNode("summarize", summarize)
+            .addNode("retriever", retriever)
+            .addEdge("__start__", "retriever")
+            .addEdge("retriever", "summarize")
+            .addEdge("summarize", END);
+        
+        agent = workflow.compile({ checkpointer });
+        
+        return agent;
+    } catch (error) {
+        console.log(error);
+        throw error;
+    }
+}
+
+async function talkToRFPAgent(rfpId: string, query: string, thread_id: string) {
+
+    try {
+         const _agent = await getAgent();
+        const events = await _agent.streamEvents({
+            rfpId: rfpId,
+            input: query
+        }, {
+            version: "v2",
+            configurable: {
+                thread_id
+            },
+            streamMode: "messages",
+            runId: thread_id
+        })
+        return events;    
+    } catch (error) {
+        console.error("Error:", error);
+    }
+    
+   
+}
+
+export {
+    talkToRFPAgent,
+    agent
+}
+
+
+
+// ===========================================================================================
+
 
         // const workflow = new StateGraph(StateAnnotation)
         //     .addNode("router", router)
@@ -135,64 +149,51 @@ async function getAgent(): Promise<CompiledStateGraph<typeof StateAnnotation.Sta
         //         "router", routerDecision
         // );
 
-        const workflow = new StateGraph(StateAnnotation)
-            .addNode("summarize", summarize)
-            .addNode("retriever", retriever)
-            .addEdge("__start__", "retriever")
-            .addEdge("retriever", "summarize")
-            .addEdge("summarize", END);
-        
-        agent = workflow.compile({ checkpointer });
-
-        const drawableGraph = await agent.getGraphAsync()
-        const image = await drawableGraph.drawMermaidPng();
-        const imageBuffer = new Uint8Array(await image.arrayBuffer())
-        
-        await fs.writeFile("graph.png", imageBuffer);
-        console.log("Graph saved as graph.png");
-        return agent;
-    } catch (error) {
-        throw error;
-    }
-}
-
-async function talkToRFPAgent(rfpId: string, query: string, thread_id: string) {
-
-    try {
-         const _agent = await getAgent();
-    for await (const [messages, metadata] of await _agent.stream({
-        rfpId: rfpId,
-        input: query
-    }, {
-        // version: "v2",
-        configurable: {
-            thread_id
-        },
-        streamMode: "messages",
-        runId: thread_id
-    })) {
-        // if (output.event === "updates") {
-        console.dir(messages);
-        console.dir(metadata);
-        // }
-        console.log("==================")
-    }
-        
-    } catch (error) {
-        console.error("Error:", error);
-    }
-    
-   
-}
-
-export {
-    talkToRFPAgent
-}
 
 
 
 
 
 
+// const chatbot = async (state: typeof StateAnnotation.State): Promise<Partial<typeof StateAnnotation.State>> => {
+
+//     const retieveDocs = await prisma.rFPEmbedding.findMany({
+//         where: {rfpId: state.rfpId}
+//     })
+
+//     const context = retieveDocs.map(ctx => ctx.content);
+
+//     const response = await chain.invoke({
+//         context: context,
+//         question: state.input
+//     })
+
+//     console.log(response)
+
+//     return { output: response}
+// }
 
 
+
+// const router = async (state: typeof StateAnnotation.State): Promise<Partial<typeof StateAnnotation.State>> => {
+//     console.log("Router:\n\n")
+//     console.dir(state);
+//     const decision = await llmRouter.invoke([
+//         new SystemMessage("Route the input to chatbot, retriever based on the user's request."),
+//         new HumanMessage(state.input)
+//     ])
+
+//     console.log(decision, "=========")
+
+//     return {decision: decision.step }
+// }
+
+// const routerDecision = async (state: typeof StateAnnotation.State)=> {
+//     if (state.decision === 'chatbot') {
+//         return "chatbot"
+//     } else if (state.decision === "retriever") {
+//         return "retriever"
+//     } else {
+//         return "chatbot"
+//     }
+// }
