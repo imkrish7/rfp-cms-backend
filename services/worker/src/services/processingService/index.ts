@@ -5,22 +5,18 @@ import { logger } from "../../core/logger";
 import { getDocument } from "../../core/minio";
 import path from "path";
 import { fileURLToPath } from "url";
-import { PDFDocument } from "mupdf"
-import fs from "fs"
+import { queues } from "../queues";
+
 
 
 const loadDocuments = async (url: string) => {
     try {
 
         const documents = new PDFLoader(url);
-
-        // const loadedDoc = documents.;
-
-        // return loadedDoc;
         return documents.load();
         
     } catch (error) {
-        
+        throw error;
     }
 }
 
@@ -77,7 +73,10 @@ export const RFPProcessing = async (data: { id: string }) => {
                 isRFPProcessed
             }
         })
-        
+        const fetchRFP = await prisma.rfp.findFirst({
+            where: { id: data.id }
+        });
+        queues.emailChannel.add("RFP_PROCESSED", {rfpId: data.id, issuedOriganisation: fetchRFP?.orgId})
     } catch (error) {
         logger.error(error);
     }

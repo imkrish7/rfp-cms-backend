@@ -1,18 +1,12 @@
 import "dotenv/config";
-import { Queue, Worker } from "bullmq";
+import { Worker } from "bullmq";
 import { logger } from "./core/logger";
 import { connection } from "./core/redis";
 import { ACTIVATE_ACCOUNT_OTP, NEW_RFP, PROPOSAL_STATUS_UPDATE, PROPOSAL_SUBMITED } from "./interface/notification";
 import { EMAIL_OTP } from "./interface/email";
 import "./emailWorker";
 import { RFPProcessing } from "./services/processingService";
-
-
-const queues = {
-	emailChannel: new Queue("EMAIL", { connection }),
-	inAppChannel: new Queue("INAPP", { connection })
-}
-
+import { queues } from "./services/queues";
 
 new Worker("analysis", async job => {
 	logger.info({ jobId: job.id, name: job.name }, "analyzing proposal");

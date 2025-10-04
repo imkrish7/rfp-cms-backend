@@ -1,0 +1,1 @@
+export const RFP_STATUS_UPDATE = "RFP_STATUS_UPDATE";
